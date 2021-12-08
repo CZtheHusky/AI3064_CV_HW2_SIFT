@@ -254,7 +254,7 @@ def compute_affine_xform(keyP1, keyP2, matches):
         affMartix = np.linalg.lstsq(vector1, vector2, rcond=None)[0]
         dist = np.linalg.norm(pos1.dot(affMartix) - pos2, axis=1)
         var = np.var(dist)
-        thres = np.sqrt(var * 12.59)
+        thres = np.sqrt(var)
         inner_labels = dist < thres
         if inner_labels.sum() > max_in:
             outlier_labels = ~inner_labels

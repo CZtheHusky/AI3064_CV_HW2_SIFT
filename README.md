@@ -1,7 +1,7 @@
 # AI3064_CV_HW2_SIFT
  Homework2 of AI3064
  
-Acknowledgements and references list：
+Acknowledgements and references：
 
 https://medium.com/@russmislam/implementing-sift-in-python-a-complete-guide-part-1-306a99b50aa5
 

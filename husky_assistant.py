@@ -231,6 +231,6 @@ def blobDetection(husky, gaussians, S=3, sigma=1.6, cThres=0.05):
                         counter += 1
     husky = sorted(corners.items(), key=lambda item: item[1].value, reverse=True)
     time2 = time()
-    print('find', counter, 'keypoints')
-    print('find keypoint:', time2 - time1, 's')
+    # print('find', counter, 'keypoints')
+    # print('find keypoint:', time2 - time1, 's')
     return husky

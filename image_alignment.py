@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-import numpy as np
-from tqdm import tqdm
 from husky_assistant import *
 
 
@@ -48,7 +46,7 @@ def compute_descriptors(image, keyP):
     - descriptors (list of 1d array): A list of desciptors for each corner.
         Each element is an 1d array of length 128.
     """
-    time1 = time()
+    # time1 = time()
     width = 4
     numBins = 8
     scaleRatio = 3
@@ -130,8 +128,8 @@ def compute_descriptors(image, keyP):
             # 二次归一化
             descriptor_vector /= max(np.linalg.norm(descriptor_vector), 1e-7)
             descriptors.append([descriptor_vector, idx])
-    time2 = time()
-    print('compute descriptor:', time2 - time1, 's')
+    # time2 = time()
+    # print('compute descriptor:', time2 - time1, 's')
     return descriptors
 
 
@@ -147,19 +145,19 @@ def match_descriptors(descriptors1, descriptors2):
         indices. Each tuple contains two integer indices. For example, tuple
         (0, 42) indicates that corners1[0] is matched to corners2[42].
     """
-    time1 = time()
+    # time1 = time()
     matches = defaultdict(int)
     for i, descriptor1 in enumerate(descriptors1):
         dist = np.zeros(len(descriptors2))
         for j, descriptor2 in enumerate(descriptors2):
             dist[j] = np.linalg.norm(descriptor1[0] - descriptor2[0])
         idxes = np.argsort(dist)
-        if dist[idxes[0]] / (dist[idxes[1]] + 1e-10) < 0.8:
+        if dist[idxes[0]] / (dist[idxes[1]] + 1e-10) < 0.9:
             matches[(descriptor1[1], descriptors2[idxes[0]][1])] = dist[idxes[0]]
     # matches = sorted(matches.keys(), key=lambda item: item[1], reverse=False)
-    time2 = time()
-    print('find', len(matches), 'matches')
-    print('match descriptors:', time2 - time1, 's')
+    # time2 = time()
+    print('Found', len(matches), 'matches')
+    # print('match descriptors:', time2 - time1, 's')
     return np.array(list(matches.keys()))
 
 
@@ -191,26 +189,31 @@ def draw_matches(image1, image2, keyP1, keyP2, matches,
     match_image = np.concatenate([image1, image2], axis=1)
     if outlier_labels is None:
         outlier_labels = np.zeros(len(matches))
-    colors = [(255, 0, 0), (0, 255, 0), (255, 255, 0), (0, 255, 255), (255, 0, 255)]
-    rotate = 0
+    # colors = [(255, 0, 0), (0, 255, 0), (255, 255, 0), (0, 255, 255), (255, 0, 255)]
+    # rotate = 0
     for (a, b), i in zip(matches, outlier_labels):
-        if i:
-            color = (0, 0, 255)
-        else:
-            color = colors[rotate]
-            rotate += 1
-            rotate %= len(colors)
         pos1 = posExtractor(a, keyP1)
         pos2 = posExtractor(b, keyP2)
         pos2 = list(pos2)
         pos2[0] += W1
         pos2 = tuple(pos2)
-        cv2.line(match_image, pos1, pos2, color=color, thickness=1)
-        cv2.circle(match_image, pos1, radius=1, color=color, thickness=1)
-        cv2.circle(match_image, pos2, radius=1, color=color, thickness=1)
+        if i:
+            color = (0, 0, 255)
+            cv2.line(match_image, pos1, pos2, color=color, thickness=1)
+            cv2.circle(match_image, pos1, radius=1, color=color, thickness=2)
+            cv2.circle(match_image, pos2, radius=1, color=color, thickness=2)
+        else:
+            # color = colors[rotate]
+            # rotate += 1
+            # rotate %= len(colors)
+            color = (255, 0, 0)
+            cv2.line(match_image, pos1, pos2, color=color, thickness=1)
+            cv2.circle(match_image, pos1, radius=1, color=(0, 255, 0), thickness=2)
+            cv2.circle(match_image, pos2, radius=1, color=(0, 255, 0), thickness=2)
     # im_show(match_image)
     # time2 = time()
     # print('draw matching image:', time2 - time1, 's')
+    print('match image')
     return match_image
 
 
@@ -240,8 +243,8 @@ def compute_affine_xform(keyP1, keyP2, matches):
     for i, j in matches:
         pos1.append(posExtractor(i, keyP1))
         pos2.append(posExtractor(j, keyP2))
-    pos1 = np.array(pos1)
-    pos2 = np.array(pos2)
+    pos1 = np.array(pos1) + 50
+    pos2 = np.array(pos2) + 50
     cat = np.ones((len(matches), 1))
     pos1 = np.concatenate((pos1, cat), axis=1)
     pos2 = np.concatenate((pos2, cat), axis=1)
@@ -253,8 +256,9 @@ def compute_affine_xform(keyP1, keyP2, matches):
         vector2 = pos2[sample]
         affMartix = np.linalg.lstsq(vector1, vector2, rcond=None)[0]
         dist = np.linalg.norm(pos1.dot(affMartix) - pos2, axis=1)
-        var = np.var(dist)
-        thres = np.sqrt(var)
+        # var = np.var(dist)
+        thres = 10
+        # thres = 5
         inner_labels = dist < thres
         if inner_labels.sum() > max_in:
             outlier_labels = ~inner_labels
@@ -264,7 +268,7 @@ def compute_affine_xform(keyP1, keyP2, matches):
         return None, None, None
     dist = np.linalg.norm(pos1.dot(xform) - pos2, axis=1)
     idxes = np.argsort(dist)
-    nums = min(len(idxes), 25)
+    nums = min(len(idxes), 12)
     print('xform')
     print(xform)
     print('inliers:', max_in)
@@ -299,6 +303,7 @@ def stitch_images(image1, image2, xform):
     image_stitched[(image2 > 0) & (warped > 0)] /= 2
     # time2 = time()
     # print('stitch image:', time2 - time1, 's')
+    print('stitched image')
     return image_stitched.astype('uint8')
 
 
@@ -306,7 +311,7 @@ def imageStitch(name, name1, img_path1, img_path2):
     dataPath = 'data/'
     matchPath = 'match_image/'
     stitchPath = 'image_stitched/'
-    print('\nstitching', img_path1, 'and', img_path2)
+    print('\n', img_path1, 'and', img_path2)
     img1 = cv2.imread(dataPath + img_path1, cv2.IMREAD_COLOR)
     img2 = cv2.imread(dataPath + img_path2, cv2.IMREAD_COLOR)
     gray1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY) / 255.0
@@ -326,16 +331,12 @@ def imageStitch(name, name1, img_path1, img_path2):
 
 def main():
     imageStitch('bikes_01.png', 'bikes_11.png', 'bikes1.png', 'bikes2.png')
-    imageStitch('bikes_02.png', 'bikes_22.png', 'bikes2.png', 'bikes3.png')
     imageStitch('bikes_03.png', 'bikes_33.png', 'bikes1.png', 'bikes3.png')
     imageStitch('graf_01.png', 'graf_11.png', 'graf1.png', 'graf2.png')
-    imageStitch('graf_02.png', 'graf_22.png', 'graf2.png', 'graf3.png')
     imageStitch('graf_03.png', 'graf_33.png', 'graf1.png', 'graf3.png')
     imageStitch('leuven01.png', 'leuven11.png', 'leuven1.png', 'leuven2.png')
-    imageStitch('leuven02.png', 'leuven22.png', 'leuven2.png', 'leuven3.png')
     imageStitch('leuven03.png', 'leuven33.png', 'leuven1.png', 'leuven3.png')
     imageStitch('wall01.png', 'wall11.png', 'wall1.png', 'wall2.png')
-    imageStitch('wall02.png', 'wall22.png', 'wall2.png', 'wall3.png')
     imageStitch('wall03.png', 'wall33.png', 'wall1.png', 'wall3.png')
 
 
